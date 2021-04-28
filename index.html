@@ -1,0 +1,328 @@
+<html>
+    <head>
+        <title>
+            Maze Generation
+        </title>
+        <link rel="icon" href="resources/icon.png">
+    </head>
+    <style>
+
+        body{
+            font-family:"arial";
+        }
+
+        #mazeOptions{
+            position:absolute;
+            width:1300px;
+            height:80px;
+            left:50%;
+            margin-left:-650px;
+            top:5px;
+            text-align:center;
+            line-height:200%;
+        }
+
+        #maze{
+            position:absolute;
+            width:800px;
+            height:800px;
+            left:50%;
+            margin-left:-400px;
+            top:110px;
+            letter-spacing: 6.5px;
+        }
+
+    </style>
+    <body>
+        <div id="mazeOptions">
+            <b>Options</b><br>
+            length: <input type="number" id="length" min="2" value="20" style="width:50px">, 
+            height: <input type="number" id="height" min="2" value="16" style="width:50px">, 
+            average hallway size: <input type="number" id="hallSize" min="0" max="100" value="50" style="width:50px">%,
+            solutions: <input type="number" id="solutions" min="1" value="1" style="width:50px">, 
+            exits: 
+            <select id="exit">
+                <option value="tmbm">Top Middle & Bottom Middle</option>
+                <option value="lmrm">Left Middle & Right Middle</option>
+                <option value="tlbr">Top Left & Bottom Right</option>
+                <option value="trbl">Top Right & Bottom Left</option>
+                <option value="none">No Exits</option>
+                <option value="random">Random</option>
+            </select>, 
+           
+            color: <input type="color" id="color" value="#000000"><br>
+            <input type="button" value=" Render " onclick="render()" style="background-color: white; border: 1px solid black; border-radius:4px; font-weight: bold; padding:3px; margin-top:5px;">
+        </div>
+        <canvas id="maze" width="800" height="800" style="border:0px solid #c3c3c3;">
+
+    </body>
+    <script>
+
+        let maze = [] //X = wall, O = empty
+        let currentCellPath = []
+        let path = []
+
+        let WALLLENGTH = 3; // between 1 and 5
+        let LENGTH = 20;
+        let HEIGHT = 20;
+        let TURNCHANCE = 50;
+        let FRAMERATE = 1;
+        let SOLUTIONS = 1;
+        let COLOR = "#000000"
+        let EXITS = "none"
+
+        direction = [0, 0]
+        directions = [[0, 2], [0, -2], [-2, 0], [2, 0]]
+
+        function render(){
+            LENGTH = document.getElementById("length").value;
+            HEIGHT = document.getElementById("height").value;
+            TURNCHANCE = 100 - document.getElementById("hallSize").value;
+            SOLUTIONS = document.getElementById("solutions").value;
+            COLOR = document.getElementById("color").value
+            EXITS = document.getElementById("exit").value
+            establishMazeArray(HEIGHT, LENGTH, TURNCHANCE, FRAMERATE)      
+        }
+        
+
+        function establishMazeArray(length, height, turnChange, millisecondsUntilNextFrame){
+
+            //reset all variables
+            maze = []
+            currentCellPath = []
+            path = []
+
+            // set maze array according to length/height parameters
+            for(var x = 0; x < 2 * height + 1; x++){
+                maze.push([])
+                maze[x].push("X")
+                for(var y = 0; y < length; y++){
+                    if(x %2 == 0){
+                        maze[x].push("X")
+                        maze[x].push("X")
+                    } else {
+                        maze[x].push("O")
+                        maze[x].push("X")
+                    }
+                }
+            }
+
+            //choose direction
+            if(Math.random() > 0.5){
+                if(Math.random() > 0.5){
+                    direction = [-2, 0]
+                } else {
+                    direction = [2, 0]
+                }
+            } else {
+                if(Math.random() > 0.5){
+                    direction = [0, 2]
+                } else {
+                    direction = [0, -2]
+                }                       
+            }
+
+            //choose current cell path
+            currentCellPath = [1 + 2 * Math.floor((Math.random() * height)), 1 + 2 * Math.floor((Math.random() * length))];
+
+            //add current cell path to beginning of path
+            path.push(currentCellPath[0], currentCellPath[1]);
+
+            //call mazeGeneration function
+            mazeGenerator(length, height, turnChange, millisecondsUntilNextFrame)
+        }
+
+        function mazeGenerator(length, height, turnChange, millisecondsUntilNextFrame){ // length:int, height:int, turnchange:float(change path will change directions each iteration), millisecondsUntilNextFrame:int (must be greater than 0)
+            let complete = false;
+
+            maze[currentCellPath[0]][currentCellPath[1]] = "V";
+            
+            //shuffle directions with current direction in front and back
+            directions = shuffleDirections(direction)
+            
+            //console.log(directions)
+            //console.log(direction)
+            //console.log(currentCellPath)
+            //console.log(maze)
+
+            if(turnChange < Math.random() * 100 && maze[currentCellPath[0] + directions[0][0]] && maze[currentCellPath[0] + directions[0][0]][currentCellPath[1] + directions[0][1]] && maze[currentCellPath[0] + directions[0][0]][currentCellPath[1] + directions[0][1]] == "O"){//math random > change & that first dimension exists & that second dimension exists & that it's open
+                direction = directions[0];
+                maze[currentCellPath[0] + directions[0][0]/2][currentCellPath[1] + directions[0][1]/2] = "O"
+                currentCellPath = [currentCellPath[0] + directions[0][0], currentCellPath[1] + directions[0][1]];
+                path.push([currentCellPath[0], currentCellPath[1]])
+            } else if(maze[currentCellPath[0] + directions[1][0]] && maze[currentCellPath[0] + directions[1][0]][currentCellPath[1] + directions[1][1]] && maze[currentCellPath[0] + directions[1][0]][currentCellPath[1] + directions[1][1]] == "O"){
+                direction = directions[1];
+                maze[currentCellPath[0] + directions[1][0]/2][currentCellPath[1] + directions[1][1]/2] = "O"
+                currentCellPath = [currentCellPath[0] + directions[1][0], currentCellPath[1] + directions[1][1]];
+                path.push([currentCellPath[0], currentCellPath[1]])
+            } else if(maze[currentCellPath[0] + directions[2][0]] && maze[currentCellPath[0] + directions[2][0]][currentCellPath[1] + directions[2][1]] && maze[currentCellPath[0] + directions[2][0]][currentCellPath[1] + directions[2][1]] == "O"){
+                direction = directions[2];
+                maze[currentCellPath[0] + directions[2][0]/2][currentCellPath[1] + directions[2][1]/2] = "O"
+                currentCellPath = [currentCellPath[0] + directions[2][0], currentCellPath[1] + directions[2][1]];
+                path.push([currentCellPath[0], currentCellPath[1]])
+            } else if(maze[currentCellPath[0] + directions[3][0]] && maze[currentCellPath[0] + directions[3][0]][currentCellPath[1] + directions[3][1]] && maze[currentCellPath[0] + directions[3][0]][currentCellPath[1] + directions[3][1]] == "O"){
+                direction = directions[3];
+                maze[currentCellPath[0] + directions[3][0]/2][currentCellPath[1] + directions[3][1]/2] = "O"
+                currentCellPath = [currentCellPath[0] + directions[3][0], currentCellPath[1] + directions[3][1]];
+                path.push([currentCellPath[0], currentCellPath[1]])
+            } else if(maze[currentCellPath[0] + directions[4][0]] && maze[currentCellPath[0] + directions[4][0]][currentCellPath[1] + directions[4][1]] && maze[currentCellPath[0] + directions[4][0]][currentCellPath[1] + directions[4][1]] == "O"){
+                direction = directions[4];
+                maze[currentCellPath[0] + directions[4][0]/2][currentCellPath[1] + directions[4][1]/2] = "O"
+                currentCellPath = [currentCellPath[0] + directions[4][0], currentCellPath[1] + directions[4][1]];
+                path.push([currentCellPath[0], currentCellPath[1]])
+            } else {
+                //delete the last index of path and go to new last index of path 
+                path.pop();
+                currentCellPath = path[path.length - 1]
+            }
+
+            if(currentCellPath == path[1]){
+                complete = true
+                finishMaze()
+            } else {
+                maze[currentCellPath[0]][currentCellPath[1]] = "C";
+            }
+
+            renderMaze(maze.length, maze[0].length)
+
+            if(!complete){
+                setTimeout(function(){
+                    mazeGenerator(length, height, turnChange, millisecondsUntilNextFrame)
+                }, millisecondsUntilNextFrame);
+            }
+        }
+
+        function finishMaze(){
+            //add exits
+            if(EXITS == "random"){
+                for(var i = 0; i < 2; i ++){
+                    if(Math.random() > 0.5){
+                        if(Math.random() > 0.5){ //left
+                            maze[0][1 + 2 * Math.floor(Math.random() * 0.5 * (maze[0].length - 2))] = "O"
+                        } else { //right
+                            valueThisTime = 1 + 2 * Math.floor(Math.random() * 0.5 * (maze[0].length - 2))
+                            maze[maze.length - 1][valueThisTime] = "O"
+                            maze[maze.length - 1][valueThisTime - 1] = "O"
+
+                        }
+                    } else {
+                        if(Math.random() > 0.5){//bottom
+                            valueThisTime = 1 + 2 * Math.floor(Math.random() * 0.5 * (maze.length - 2))
+                            maze[valueThisTime][maze[0].length - 1] = "O"
+                            maze[valueThisTime - 1][maze[0].length - 1] = "O"
+                        } else { //top
+                            maze[1 + 2 * Math.floor(Math.random() * 0.5 * (maze.length - 2))][0] = "O"
+                        }
+                    }
+                }
+            }
+            if(EXITS == "tlbr"){
+                maze[1][0] = "O"
+                maze[maze.length - 2][maze[0].length - 1] = "O"
+                maze[maze.length - 3][maze[0].length - 1] = "O"
+
+            }
+            if(EXITS == "trbl"){
+                maze[maze.length - 2][0] = "O"
+                maze[0][maze[0].length - 1] = "O"
+                maze[1][maze[0].length - 1] = "O"
+              
+            }
+            if(EXITS == "tmbm"){
+                maze[1 + 2 * (Math.floor(0.25 * maze.length))][0] = "O"
+                maze[1 + 2 * (Math.floor(0.25 * maze.length))][maze[0].length - 1] = "O"
+                maze[2 * (Math.floor(0.25 * maze.length))][maze[0].length - 1] = "O"
+            }
+            if(EXITS == "lmrm"){
+                maze[0][1 + 2 * Math.floor(0.25 * maze[0].length)] = "O"
+                maze[maze.length - 1][1 + 2 * Math.floor(0.25 * maze[0].length)] = "O"
+                maze[maze.length - 1][2 * Math.floor(0.25 * maze[0].length)] = "O"
+            }
+
+            //add solutions
+            for(var i = 0; i < SOLUTIONS - 1; i++){
+                complete = false;
+                while(complete == false){
+                    thisTime = [1 + Math.floor(Math.random() * (maze.length - 2)), 1 + Math.floor(Math.random() * (maze[0].length - 2))]
+                    if(maze[thisTime[0]][thisTime[1]] == "X"){
+                        //if(thisTime[1] % 2 == 1){
+                            if(thisTime[0] % 2 == 1){
+                                complete = true;
+                                maze[thisTime[0]][thisTime[1]] = "V"
+                            }
+                        //} // not sure why we dont need this but it works fine without it even though I would have thought it would not have
+                    }
+                }
+            }
+            renderMaze(maze.length, maze[0].length)
+        }
+
+        function shuffleDirections(first){
+            if(first[0] == 0 && first[1] == 2){
+                return([[0, 2]].concat(shuffle([[0, -2], [-2, 0], [2, 0]])).concat([[0, 2]]))
+            }
+            if(first[0] == 0 && first[1] == -2){
+                return([[0, -2]].concat(shuffle([[0, 2], [-2, 0], [2, 0]])).concat([[0, -2]]))
+            }
+            if(first[0] == -2 && first[1] == 0){
+                return([[-2, 0]].concat(shuffle([[0, -2], [0, 2], [2, 0]])).concat([[-2, 0]]))
+            }
+            if(first[0] == 2 && first[1] == 0){
+                return([[2, 0]].concat(shuffle([[0, -2], [-2, 0], [0, 2]])).concat([[2, 0]]))
+            }
+        }
+
+        function shuffle(array) {
+            var currentIndex = array.length, temporaryValue, randomIndex;
+                while (0 !== currentIndex) {
+                    randomIndex = Math.floor(Math.random() * currentIndex);
+                    currentIndex -= 1;
+                    temporaryValue = array[currentIndex];
+                    array[currentIndex] = array[randomIndex];
+                    array[randomIndex] = temporaryValue;
+                }
+            return array;   
+        }
+
+        function renderMaze(length, height){
+
+            var canvas = document.getElementById("maze");
+            var ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0,0,800,800)
+            ctx.fillStyle = COLOR;
+
+            var multiplyer = 800 / (5 * Math.max(length, height))
+
+            for(var y = 0; y < height; y++){
+                for(var x = 0; x < length; x++){
+                    if(maze[x][y] == "X" && x % 2 == 0 && y % 2 == 0){
+                            ctx.fillRect(x * 5 * multiplyer,y * 5 * multiplyer, WALLLENGTH * multiplyer, WALLLENGTH * multiplyer)
+                        if(x < maze.length - 2 && y < maze[0].length - 2){
+                            if(maze[x + 1][y] == "X"){
+                                ctx.fillRect(x * 5 * multiplyer,y * 5 * multiplyer, (10 - WALLLENGTH) * multiplyer, WALLLENGTH * multiplyer)
+                            }
+                            if(maze[x][y + 1] == "X"){
+                                ctx.fillRect(x * 5 * multiplyer,y * 5 * multiplyer, WALLLENGTH * multiplyer, (10 - WALLLENGTH) * multiplyer)
+                            }
+                        } else if(x == maze.length - 1 && y == maze[0].length - 1){
+
+                        } else if(x == maze.length - 1){
+
+                            ctx.fillRect(x * 5 * multiplyer,y * 5 * multiplyer, WALLLENGTH * multiplyer, (10 - WALLLENGTH) * multiplyer)
+                            
+                        } else {
+                            ctx.fillRect(x * 5 * multiplyer,y * 5 * multiplyer, (10 - WALLLENGTH) * multiplyer, WALLLENGTH * multiplyer)
+                        }  
+                        
+                    } else if(maze[x][y] == "X" && x % 2 == 0){
+                        ctx.fillRect(x * 5 * multiplyer,y * 5 * multiplyer, WALLLENGTH * multiplyer, (10 - WALLLENGTH) * multiplyer)
+                    } else if(maze[x][y] == "X" && y % 2 == 0){
+                        ctx.fillRect(x * 5 * multiplyer,y * 5 * multiplyer, (10 - WALLLENGTH) * multiplyer, WALLLENGTH * multiplyer)
+                    }
+                }
+            }
+        }
+
+    </script>
+</html>
